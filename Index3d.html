@@ -6,9 +6,17 @@
   <style>
     body { margin: 0; overflow: hidden; background: black; }
     canvas { display: block; }
+    #score {
+      position: absolute; top: 10px; left: 10px;
+      color: white; font-family: Arial, sans-serif;
+      font-size: 20px; background: rgba(0,0,0,0.5);
+      padding: 5px 10px; border-radius: 8px;
+    }
   </style>
 </head>
 <body>
+<div id="score">Score: 0</div>
+
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
 
@@ -24,25 +32,23 @@
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  const controls = new THREE.OrbitControls(camera, renderer.domElement);
-
-  // Lighting
   const light = new THREE.PointLight(0xffffff, 1);
   light.position.set(5, 10, 5);
   scene.add(light);
 
-  // Basketball (orange sphere)
+  // Basketball
   const ballGeometry = new THREE.SphereGeometry(0.5, 32, 32);
   const ballMaterial = new THREE.MeshStandardMaterial({ color: 0xff6600 });
   const ball = new THREE.Mesh(ballGeometry, ballMaterial);
-  ball.position.set(0, 1, 0);
+  resetBall();
   scene.add(ball);
 
-  // Hoop (torus ring)
+  // Hoop
   const hoopGeometry = new THREE.TorusGeometry(1, 0.05, 16, 100);
   const hoopMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
   const hoop = new THREE.Mesh(hoopGeometry, hoopMaterial);
-  hoop.position.set(0, 3, -5);
+  hoop.rotation.x = Math.PI / 2;
+  hoop.position.set(0, 3, -8);
   scene.add(hoop);
 
   // Ground
@@ -52,9 +58,72 @@
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
 
+  // Ball physics
+  let velocity = new THREE.Vector3(0, 0, 0);
+  let isMoving = false;
+  let score = 0;
+
+  // Hoop movement
+  let hoopDir = 0.05;
+
+  // Input handling (touch drag)
+  let startX = 0, startY = 0;
+  document.addEventListener("touchstart", e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  });
+
+  document.addEventListener("touchend", e => {
+    if (!isMoving) {
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+
+      let dx = (endX - startX) / 100;  // horizontal aim
+      let dy = (startY - endY) / 100;  // vertical power
+      velocity.set(dx, dy, -0.3);      // slow forward speed (microgravity)
+      isMoving = true;
+    }
+  });
+
+  // Reset ball
+  function resetBall() {
+    ball.position.set(0, 1, 5);
+    velocity.set(0, 0, 0);
+    isMoving = false;
+  }
+
   // Animation
   function animate() {
     requestAnimationFrame(animate);
+
+    // Move hoop left & right
+    hoop.position.x += hoopDir;
+    if (hoop.position.x > 3 || hoop.position.x < -3) hoopDir *= -1;
+
+    // Ball motion
+    if (isMoving) {
+      ball.position.add(velocity);
+
+      // Microgravity: tiny downward pull
+      velocity.y -= 0.002;
+
+      // Reset if missed
+      if (ball.position.y < 0 || ball.position.z < -15) {
+        resetBall();
+      }
+
+      // Check scoring
+      const dx = ball.position.x - hoop.position.x;
+      const dy = ball.position.y - hoop.position.y;
+      const dz = ball.position.z - hoop.position.z;
+      const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+      if (dist < 0.7) {
+        score++;
+        document.getElementById("score").innerText = "Score: " + score;
+        resetBall();
+      }
+    }
+
     renderer.render(scene, camera);
   }
   animate();
