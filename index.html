@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Astro Basketball</title>
+  <style>
+    canvas {
+      background: black;
+      display: block;
+      margin: 0 auto;
+      touch-action: none; /* prevent scrolling */
+    }
+    #score {
+      text-align: center;
+      font-size: 20px;
+      color: white;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+  <div id="score">Score: 0</div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let astronaut = { x: 200, y: 550, radius: 20 };
+    let ball = { x: astronaut.x, y: astronaut.y - 30, radius: 10, active: false, vx: 0, vy: 0 };
+    let hoop = { x: 150, y: 100, width: 100, height: 20 };
+    let score = 0;
+
+    // Controls for keyboard
+    let leftPressed = false, rightPressed = false;
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "ArrowLeft") leftPressed = true;
+      if (e.key === "ArrowRight") rightPressed = true;
+      if (e.key === " " && !ball.active) shootBall();
+    });
+    document.addEventListener("keyup", e => {
+      if (e.key === "ArrowLeft") leftPressed = false;
+      if (e.key === "ArrowRight") rightPressed = false;
+    });
+
+    // Touch controls
+    let touchStartX = null;
+
+    canvas.addEventListener("touchstart", e => {
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+
+      // if ball not active, tap also shoots
+      if (!ball.active) shootBall();
+    });
+
+    canvas.addEventListener("touchmove", e => {
+      const touch = e.touches[0];
+      if (touchStartX !== null) {
+        let dx = touch.clientX - touchStartX;
+        astronaut.x += dx * 0.2; // control sensitivity
+        touchStartX = touch.clientX;
+      }
+    });
+
+    canvas.addEventListener("touchend", e => {
+      touchStartX = null;
+    });
+
+    // Shoot the ball
+    function shootBall() {
+      ball.x = astronaut.x;
+      ball.y = astronaut.y - 30;
+      ball.vx = 0;
+      ball.vy = -5;
+      ball.active = true;
+    }
+
+    function update() {
+      // Move astronaut with keyboard
+      if (leftPressed) astronaut.x -= 4;
+      if (rightPressed) astronaut.x += 4;
+
+      // Keep astronaut inside canvas
+      astronaut.x = Math.max(astronaut.radius, Math.min(canvas.width - astronaut.radius, astronaut.x));
+
+      // Ball update
+      if (ball.active) {
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+
+        // Check for score
+        if (
+          ball.y < hoop.y + hoop.height &&
+          ball.x > hoop.x &&
+          ball.x < hoop.x + hoop.width
+        ) {
+          score++;
+          document.getElementById("score").textContent = "Score: " + score;
+          ball.active = false;
+        }
+
+        // Reset if off screen
+        if (ball.y < 0) {
+          ball.active = false;
+        }
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw astronaut
+      ctx.fillStyle = "cyan";
+      ctx.beginPath();
+      ctx.arc(astronaut.x, astronaut.y, astronaut.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw ball
+      if (ball.active) {
+        ctx.fillStyle = "orange";
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Draw hoop
+      ctx.fillStyle = "red";
+      ctx.fillRect(hoop.x, hoop.y, hoop.width, hoop.height);
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+  </script>
+</body>
+</html>
